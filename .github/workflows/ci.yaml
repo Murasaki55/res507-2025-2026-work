@@ -6,7 +6,6 @@ on:
 
 jobs:
   tests:
-    name: Run Node tests
     runs-on: ubuntu-latest
 
     steps:
@@ -19,29 +18,25 @@ jobs:
           node-version: "24"
 
       - name: Install dependencies
-        working-directory: app
+        working-directory: labs/40-containerized-node-app/app
         run: npm ci
 
-      - name: Run tests
-        working-directory: app
+      - name: Run tests if present
+        working-directory: labs/40-containerized-node-app/app
         run: npm test --if-present
 
   docker:
-    name: Build and run Docker container
     runs-on: ubuntu-latest
     needs: tests
-
-
-    if: github.event_name == 'push'
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t quote-app -f docker/Dockerfile .
+        run: docker build -t quote-app -f labs/40-containerized-node-app/docker/Dockerfile labs/40-containerized-node-app
 
-      - name: Run container + healthcheck
+      - name: Run container
         run: |
           docker run -d --name quote-app -p 3000:3000 quote-app
           for i in $(seq 1 30); do
@@ -57,21 +52,5 @@ jobs:
 
       - name: Stop container
         if: always()
-        run: docker rm -f quote-app || true
-
-  pr-check:
-    name: PR only checks
-    runs-on: ubuntu-latest
-
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Quick lint / validation
-        working-directory: app
         run: |
-          echo "PR check running..."
-          npm ci
-          npm run lint --if-present
+          docker rm -f quote-app || true
