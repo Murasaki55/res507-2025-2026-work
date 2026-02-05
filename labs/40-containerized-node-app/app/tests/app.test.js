@@ -1,14 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert'
-import buildApp from '../app/app.js'
+import { buildApp } from '../app.js'
 
 test('GET / responds with a page', async () => {
-  const app = buildApp()
+  const app = await buildApp()
 
   const response = await app.inject({
     method: 'GET',
     url: '/'
   })
+
+  console.log(response.body);
 
   assert.strictEqual(response.statusCode, 200)
   assert.match(response.headers['content-type'], /text\/html/)
@@ -21,7 +23,7 @@ test('GET / responds with a page', async () => {
 })
 
 test('GET /unknown returns 404', async () => {
-  const app = buildApp()
+  const app = await buildApp()
 
   const response = await app.inject({
     method: 'GET',
@@ -32,7 +34,7 @@ test('GET /unknown returns 404', async () => {
 })
 
 test('GET / responds fast enough', async () => {
-  const app = buildApp()
+  const app = await buildApp()
 
   const start = Date.now()
 
