@@ -2,14 +2,14 @@ name: CI
 
 on:
   push:
+    branches: [ "main" ]
   pull_request:
 
 jobs:
-  build:
+  tests:
+    name: Run Node tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: labs/40-containerized-node-app
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -18,19 +18,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
 
       - name: Install dependencies
-        working-directory: labs/40-containerized-node-app/app
+        working-directory: app
         run: npm ci
 
-      - name: Run tests if present
-        working-directory: labs/40-containerized-node-app/app
+      - name: Run tests
+        working-directory: app
         run: npm test --if-present
+
+  docker:
+    name: Build and run Docker container
+    runs-on: ubuntu-latest
+    needs: tests
+
+    # 🔥 Ce job ne tourne que sur push (pas en PR)
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t quote-app -f docker/Dockerfile .
 
-      - name: Run container
+      - name: Run container + healthcheck
         run: |
           docker run -d --name quote-app -p 3000:3000 quote-app
           for i in $(seq 1 30); do
@@ -46,5 +60,21 @@ jobs:
 
       - name: Stop container
         if: always()
+        run: docker rm -f quote-app || true
+
+  pr-check:
+    name: PR only checks
+    runs-on: ubuntu-latest
+
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Quick lint / validation
+        working-directory: app
         run: |
-          docker rm -f quote-app || true
+          echo "PR check running..."
+          npm ci
+          npm run lint --if-present
