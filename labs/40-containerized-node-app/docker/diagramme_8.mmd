@@ -1,0 +1,163 @@
+graph TB
+    subgraph DevOps["🔄 CI/CD Pipeline"]
+        Dev[👨‍💻 Developer<br/>Git Push]
+        GitHub[📦 GitHub/GitLab]
+        CI[⚙️ GitHub Actions<br/>Jenkins/GitLab CI]
+        Registry[🐳 Container Registry<br/>Docker Hub/ECR]
+        
+        Dev -->|git push| GitHub
+        GitHub -->|trigger| CI
+        CI -->|build & test| CI
+        CI -->|push image| Registry
+    end
+    
+    subgraph Monitoring["📊 Monitoring & Logging Stack"]
+        Prometheus[📈 Prometheus<br/>Metrics Collection]
+        Grafana[📊 Grafana<br/>Dashboards]
+        ELK[📝 ELK Stack<br/>Elasticsearch<br/>Logstash<br/>Kibana]
+        AlertManager[🚨 AlertManager<br/>Notifications]
+        
+        Prometheus --> Grafana
+        Prometheus --> AlertManager
+    end
+    
+    subgraph Internet
+        User[👤 Users/Browser]
+        LB[⚖️ Cloud Load Balancer<br/>AWS ELB/GCP LB]
+    end
+    
+    subgraph K8s["☸️ Kubernetes Cluster - Production"]
+        
+        subgraph Ingress["🌐 Ingress Layer"]
+            IngressCtrl[🔀 Ingress Controller<br/>NGINX/Traefik<br/>+ SSL/TLS]
+        end
+        
+        subgraph Node1["🖥️ Worker Node 1"]
+            Service1[🔀 Service<br/>ClusterIP]
+            
+            subgraph Deploy1["📦 Deployment"]
+                Pod1[🟢 Pod 1<br/>App Container<br/>+ Sidecar Logging]
+                Pod2[🟢 Pod 2<br/>App Container<br/>+ Sidecar Logging]
+            end
+            
+            HPA1[📊 HPA<br/>Horizontal Pod<br/>Autoscaler]
+        end
+        
+        subgraph Node2["🖥️ Worker Node 2"]
+            subgraph Deploy2["📦 Deployment"]
+                Pod3[🟢 Pod 3<br/>App Container<br/>+ Sidecar Logging]
+                Pod4[🟢 Pod 4<br/>App Container<br/>+ Sidecar Logging]
+            end
+        end
+        
+        subgraph Node3["🖥️ Worker Node 3<br/>(Database Node)"]
+            StatefulSet[📊 StatefulSet<br/>PostgreSQL]
+            
+            subgraph DBPods["Database Pods"]
+                PodDB1[🐘 PostgreSQL<br/>Primary Pod]
+                PodDB2[🐘 PostgreSQL<br/>Replica Pod]
+            end
+            
+            PV1[(💾 Persistent Volume 1<br/>SSD Storage)]
+            PV2[(💾 Persistent Volume 2<br/>SSD Storage)]
+        end
+        
+        subgraph Storage["💾 Backup & Storage"]
+            PVC1[📎 PVC 1]
+            PVC2[📎 PVC 2]
+            S3[☁️ S3/Cloud Storage<br/>Automated Backups<br/>+ Snapshots]
+            CronJob[⏰ CronJob<br/>Backup Schedule<br/>Daily/Hourly]
+        end
+        
+        ConfigMap[⚙️ ConfigMap<br/>App Configuration]
+        Secrets[🔐 Secrets<br/>DB Credentials<br/>API Keys]
+    end
+    
+    %% Flux utilisateur
+    User -->|HTTPS| LB
+    LB -->|Route Traffic| IngressCtrl
+    IngressCtrl -->|Forward| Service1
+    Service1 -->|Load Balance| Pod1
+    Service1 -->|Load Balance| Pod2
+    Service1 -->|Load Balance| Pod3
+    Service1 -->|Load Balance| Pod4
+    
+    %% CI/CD vers K8s
+    Registry -.->|pull images| Deploy1
+    Registry -.->|pull images| Deploy2
+    CI -.->|kubectl apply| K8s
+    
+    %% Database connections
+    Pod1 -.->|SQL Query| PodDB1
+    Pod2 -.->|SQL Query| PodDB1
+    Pod3 -.->|SQL Query| PodDB1
+    Pod4 -.->|SQL Query| PodDB1
+    
+    PodDB1 -.->|Replication| PodDB2
+    
+    %% Persistence
+    StatefulSet -->|manages| PodDB1
+    StatefulSet -->|manages| PodDB2
+    PodDB1 -->|mount| PVC1
+    PodDB2 -->|mount| PVC2
+    PVC1 -->|bind| PV1
+    PVC2 -->|bind| PV2
+    
+    %% Backup
+    CronJob -.->|backup DB| PodDB1
+    PodDB1 -.->|dump| S3
+    PV1 -.->|snapshot| S3
+    
+    %% Configuration
+    ConfigMap -.->|inject config| Pod1
+    ConfigMap -.->|inject config| Pod2
+    Secrets -.->|inject secrets| Pod1
+    Secrets -.->|inject secrets| PodDB1
+    
+    %% Autoscaling
+    HPA1 -.->|scale| Deploy1
+    HPA1 -.->|scale| Deploy2
+    
+    %% Monitoring
+    Pod1 -.->|metrics| Prometheus
+    Pod2 -.->|metrics| Prometheus
+    Pod3 -.->|metrics| Prometheus
+    PodDB1 -.->|metrics| Prometheus
+    Service1 -.->|metrics| Prometheus
+    
+    %% Logging
+    Pod1 -.->|logs| ELK
+    Pod2 -.->|logs| ELK
+    Pod3 -.->|logs| ELK
+    PodDB1 -.->|logs| ELK
+    
+    %% Styles
+    style DevOps fill:#e8f5e9,stroke:#4caf50,stroke-width:3px
+    style Monitoring fill:#fff3e0,stroke:#ff9800,stroke-width:3px
+    style K8s fill:#e3f2fd,stroke:#2196f3,stroke-width:4px
+    style Internet fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    
+    style User fill:#e91e63,stroke:#c2185b,color:#fff
+    style LB fill:#ff5722,stroke:#d84315,color:#fff
+    style IngressCtrl fill:#f44336,stroke:#c62828,color:#fff
+    style Service1 fill:#e74c3c,stroke:#c0392b,color:#fff
+    
+    style Pod1 fill:#2ecc71,stroke:#27ae60,color:#fff
+    style Pod2 fill:#2ecc71,stroke:#27ae60,color:#fff
+    style Pod3 fill:#2ecc71,stroke:#27ae60,color:#fff
+    style Pod4 fill:#2ecc71,stroke:#27ae60,color:#fff
+    
+    style PodDB1 fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style PodDB2 fill:#9b59b6,stroke:#8e44ad,color:#fff
+    
+    style PV1 fill:#34495e,stroke:#2c3e50,color:#fff
+    style PV2 fill:#34495e,stroke:#2c3e50,color:#fff
+    style S3 fill:#3498db,stroke:#2980b9,color:#fff
+    
+    style Prometheus fill:#ff9800,stroke:#f57c00,color:#fff
+    style Grafana fill:#ff9800,stroke:#f57c00,color:#fff
+    style ELK fill:#795548,stroke:#5d4037,color:#fff
+    
+    style GitHub fill:#4caf50,stroke:#388e3c,color:#fff
+    style CI fill:#4caf50,stroke:#388e3c,color:#fff
+    style Registry fill:#00bcd4,stroke:#0097a7,color:#fff

@@ -1,0 +1,29 @@
+graph TB
+    subgraph Internet
+        User[👤 User/Browser]
+    end
+
+    subgraph K8s["☸️ Kubernetes Cluster"]
+        Service[🔀 Service<br/>Load Balancer]
+
+        subgraph Deployment["📦 Deployment"]
+            Pod1[🟢 Pod 1<br/>Container: App]
+            Pod2[🟢 Pod 2<br/>Container: App]
+        end
+
+        DB[(🐘 PostgreSQL<br/>Database)]
+    end
+
+    User -->|HTTP Request| Service
+    Service -->|Route Traffic| Pod1
+    Service -->|Route Traffic| Pod2
+    Pod1 -.->|SQL Query| DB
+    Pod2 -.->|SQL Query| DB
+
+    style User fill:#3498db,stroke:#2980b9,color:#fff
+    style Service fill:#e74c3c,stroke:#c0392b,color:#fff
+    style Deployment fill:#f39c12,stroke:#d68910,color:#fff
+    style Pod1 fill:#2ecc71,stroke:#27ae60,color:#fff
+    style Pod2 fill:#2ecc71,stroke:#27ae60,color:#fff
+    style DB fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style K8s fill:#ecf0f1,stroke:#34495e,stroke-width:3px
